@@ -1,2 +1,7 @@
+source env/Scripts/activate
+
 FLASK_APP=project/app.py python -m flask run -p 5001
+
 python -m pytest
+
+deactivate
