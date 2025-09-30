@@ -1,6 +1,7 @@
 import os, pytest, json
 from pathlib import Path
-
+BASE_DIR = Path(__file__).resolve().parent.parent
+os.environ["DATABASE_URL"] = f"sqlite:///{BASE_DIR / 'test.db'}"
 from project.app import app, db
 from project import models
 
