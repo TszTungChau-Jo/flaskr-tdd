@@ -1,0 +1,31 @@
+Error encountered:
+
+Section: Create the DB
+SQLAlchemy Migration Notes
+Error cause: After switching to Flask-SQLAlchemy, the app queried the Post model, but the SQLite DB had no post table → sqlite3.OperationalError: no such table: post.
+Fix: Run db.create_all() inside an app context (via create_db.py) to generate tables before starting the server.
+Key steps:
+1.Install: pip install Flask-SQLAlchemy.
+2.Add to requirements.txt (pin versions with pip freeze > requirements.txt).
+3.Define models in project/models.py using the shared db from app.py.
+4.Create create_db.py:
+
+from project.app import app, db
+from project.models import Post
+with app.app_context():
+    db.create_all()
+    db.session.commit()
+
+5.Run python create_db.py once → tables created in project/flaskr.db.
+6.Verify with:
+sqlite3 project/flaskr.db ".tables"
+→ should list post.
+
+Gotchas:
+Import order: db = SQLAlchemy(app) must come before from project import models.
+Ensure the DB URI points to the right file:
+sqlite:///C:/Users/.../flaskr-tdd/project/flaskr.db
+Models must import the existing db, not create a new one.
+Tests: update fixtures to use db.create_all() and db.drop_all().
+Takeaway: Always initialize your models’ tables (via create_db.py or migrations) before running the app; otherwise SQLAlchemy won’t find them.
+
