@@ -2,9 +2,9 @@ import os, pytest, json
 from pathlib import Path
 
 from project.app import app, db
+from project import models
 
 TEST_DB = "test.db"
-
 
 @pytest.fixture
 def client():
@@ -85,3 +85,21 @@ def test_delete_message(client):
     rv = client.get("/delete/1")
     data = json.loads(rv.data)
     assert data["status"] == 1
+
+def test_search_no_query_returns_200(client):
+    rv = client.get("/search/")
+    assert rv.status_code == 200
+
+
+def test_search_with_query_returns_200(client):
+    rv = client.get("/search/?query=hello")
+    assert rv.status_code == 200
+
+
+def test_search_with_seeded_posts_is_stable(client):
+    with app.app_context():
+        db.session.add(models.Post(title="First", text="Lorem ipsum"))
+        db.session.commit()
+
+    rv = client.get("/search/?query=ipsum")
+    assert rv.status_code == 200
