@@ -1,10 +1,12 @@
 import sqlite3
-from pathlinb import Path
-from project import models
-from flask_sqlalchemy import SQLAlchemy
-from flask import Flask, g, render_template, request, session, flash, redirect, url_for, abort, jsonify
+from pathlib import Path
 
-basedir = Path(__file__).resovle().parent
+from flask import Flask, g, render_template, request, session, \
+                  flash, redirect, url_for, abort, jsonify
+from flask_sqlalchemy import SQLAlchemy
+
+
+basedir = Path(__file__).resolve().parent
 
 # configuration
 DATABASE = "flaskr.db"
@@ -17,22 +19,33 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 # create and initialize a new Flask app
 app = Flask(__name__)
-# load the config file
+# load the config
 app.config.from_object(__name__)
+# init sqlalchemy
 db = SQLAlchemy(app)
 
+from project import models
 
-# show entries
-@app.route("/")
+
+@app.route('/')
 def index():
     """Searches the database for entries, then displays them."""
-    db = get_db()
-    cur = db.execute("SELECT * FROM entries ORDER BY id DESC")
-    entries = cur.fetchall()
-    return render_template("index.html", entries=entries)
+    entries = db.session.query(models.Post)
+    return render_template('index.html', entries=entries)
 
 
-# login: GET is used for accessing a webpage, while POST is used when information is sent to the server
+@app.route('/add', methods=['POST'])
+def add_entry():
+    """Adds new post to the database."""
+    if not session.get('logged_in'):
+        abort(401)
+    new_entry = models.Post(request.form['title'], request.form['text'])
+    db.session.add(new_entry)
+    db.session.commit()
+    flash('New entry was successfully posted')
+    return redirect(url_for('index'))
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """User login/authentication/session management."""
@@ -49,7 +62,6 @@ def login():
     return render_template('login.html', error=error)
 
 
-# logout
 @app.route('/logout')
 def logout():
     """User logout/authentication/session management."""
@@ -58,30 +70,15 @@ def logout():
     return redirect(url_for('index'))
 
 
-@app.route('/add', methods=['POST'])
-def add_entry():
-    """Add new post to database."""
-    if not session.get('logged_in'):
-        abort(401)
-    db = get_db()
-    db.execute(
-        'insert into entries (title, text) values (?, ?)',
-        [request.form['title'], request.form['text']]
-    )
-    db.commit()
-    flash('New entry was successfully posted')
-    return redirect(url_for('index'))
-
-
-@app.route('/delete/<post_id>', methods=['GET'])
+@app.route('/delete/<int:post_id>', methods=['GET'])
 def delete_entry(post_id):
-    """Delete post from database"""
+    """Deletes post from database."""
     result = {'status': 0, 'message': 'Error'}
     try:
-        db = get_db()
-        db.execute('delete from entries where id=' + post_id)
-        db.commit()
+        db.session.query(models.Post).filter_by(id=post_id).delete()
+        db.session.commit()
         result = {'status': 1, 'message': "Post Deleted"}
+        flash('The entry was deleted.')
     except Exception as e:
         result = {'status': 0, 'message': repr(e)}
     return jsonify(result)
