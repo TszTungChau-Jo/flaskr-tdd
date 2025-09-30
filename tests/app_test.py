@@ -76,15 +76,76 @@ def test_messages(client):
     assert b"<strong>HTML</strong> allowed here" in rv.data
 
 
-def test_delete_message(client):
-    """Ensure the messages are being deleted"""
-    rv = client.get("/delete/1")
-    data = json.loads(rv.data)
+# def test_delete_message(client):
+#     """Ensure the messages are being deleted"""
+#     rv = client.get("/delete/1")
+#     data = json.loads(rv.data)
+#     assert data["status"] == 0
+#     login(client, app.config["USERNAME"], app.config["PASSWORD"])
+#     rv = client.get("/delete/1")
+#     data = json.loads(rv.data)
+#     assert data["status"] == 1
+
+def test_delete_requires_login_returns_401_and_json(client):
+    # seed a post
+    with app.app_context():
+        p = models.Post(title="t", text="x")
+        db.session.add(p)
+        db.session.commit()
+        post_id = p.id
+
+    # unauthenticated delete → should be blocked with 401 and JSON message
+    rv = client.get(f"/delete/{post_id}")
+    assert rv.status_code == 401
+    data = rv.get_json()
     assert data["status"] == 0
+    assert "Please log in" in data["message"]
+
+    # ensure the post still exists
+    with app.app_context():
+        assert db.session.get(models.Post, post_id) is not None
+
+
+def test_delete_authenticated_succeeds(client):
+    # seed a post
+    with app.app_context():
+        p = models.Post(title="to-delete", text="y")
+        db.session.add(p)
+        db.session.commit()
+        post_id = p.id
+
+    # login, then delete
     login(client, app.config["USERNAME"], app.config["PASSWORD"])
-    rv = client.get("/delete/1")
-    data = json.loads(rv.data)
+    rv = client.get(f"/delete/{post_id}")
+    assert rv.status_code == 200
+    data = rv.get_json()
     assert data["status"] == 1
+
+    # record should be gone
+    with app.app_context():
+        assert db.session.get(models.Post, post_id) is None
+
+
+def test_delete_after_logout_is_blocked_again(client):
+    # seed a post
+    with app.app_context():
+        p = models.Post(title="stay", text="z")
+        db.session.add(p)
+        db.session.commit()
+        post_id = p.id
+
+    # login → logout → try delete
+    login(client, app.config["USERNAME"], app.config["PASSWORD"])
+    logout(client)
+    rv = client.get(f"/delete/{post_id}")
+    assert rv.status_code == 401
+    data = rv.get_json()
+    assert data["status"] == 0
+
+    # still present
+    with app.app_context():
+        assert db.session.get(models.Post, post_id) is not None
+
 
 def test_search_no_query_returns_200(client):
     rv = client.get("/search/")
