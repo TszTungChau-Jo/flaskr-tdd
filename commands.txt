@@ -4,4 +4,7 @@ FLASK_APP=project/app.py python -m flask run -p 5001
 
 python -m pytest
 
+python create_db.py
+sqlite3 project/flaskr.db ".tables"
+
 deactivate
