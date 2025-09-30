@@ -1,11 +1,14 @@
-import os, pytest, json
+import os
+import pytest
 from pathlib import Path
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 os.environ["DATABASE_URL"] = f"sqlite:///{BASE_DIR / 'test.db'}"
 from project.app import app, db
 from project import models
 
 TEST_DB = "test.db"
+
 
 @pytest.fixture
 def client():
@@ -86,6 +89,7 @@ def test_messages(client):
 #     rv = client.get("/delete/1")
 #     data = json.loads(rv.data)
 #     assert data["status"] == 1
+
 
 def test_delete_requires_login_returns_401_and_json(client):
     # seed a post
